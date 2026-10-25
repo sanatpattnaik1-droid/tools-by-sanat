@@ -10,7 +10,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Version must look like 1.2.3" }
-if (Get-Process excel -ErrorAction SilentlyContinue) { throw 'Close all Excel windows first.' }
+# Building uses its own hidden Excel, so an Excel you have open is fine. Only the build\ output files must be free
+# (build.ps1 / build-loader.ps1 stop with a clear message if they are locked).
+if (Get-Process excel -ErrorAction SilentlyContinue) { Write-Host 'Excel is open: that is fine, the build uses its own hidden copy.' -ForegroundColor DarkGray }
 
 $root = $PSScriptRoot
 & (Join-Path $root 'build.ps1') -Version $Version

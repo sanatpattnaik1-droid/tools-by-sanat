@@ -12,7 +12,7 @@
           <button id="btnEInvoiceValidation" label="E-Invoice Validation" screentip="E Invoice Validation" size="large" image="btnEInvoiceValidation" tag="E_Invoice_Validation.E_Invoice_Validation" onAction="RunMacro"/>
         </group>
 
-        <group id="grpRetail" label="Retail Formats">
+        <group id="grpRetail" label="Buyer Tools">
           <button id="btnFlipkartPO" label="Flipkart PO Format" screentip="Flipkart PO Formatter" size="large" image="btnFlipkartPO" tag="Flipkart_PO_formatter.Flipkart_PO_formatter" onAction="RunMacro"/>
           <button id="btnBlinkitPO" label="Blinkit PO Format" screentip="Blinkit PO Format" size="large" image="btnBlinkitPO" tag="BlinkitPOFormatter.FormatBlinkitPO" onAction="RunMacro"/>
           <button id="btnMaricoHideColumns" label="Marico Hide Columns" screentip="Marico Hide Unwanted Columns" size="large" image="btnMaricoHideColumns" tag="Marico_HideUnwantedColumns.Marico_HideUnwantedColumns" onAction="RunMacro"/>
