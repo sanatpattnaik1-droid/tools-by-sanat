@@ -1,0 +1,6 @@
+build/
+~$*
+*.xlsb
+*.XLSB
+dist/
+src/icons/source/

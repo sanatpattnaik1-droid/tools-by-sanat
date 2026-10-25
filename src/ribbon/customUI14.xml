@@ -1,0 +1,51 @@
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui">
+  <ribbon>
+    <tabs>
+      <tab id="tabToolsBySanat" label="Tools By Sanat" insertAfterMso="TabDeveloper">
+
+        <group id="grpHA" label="HA">
+          <button id="btnCompWiseSaleRegister" label="Cmp Wise Sale Register (Detail)" size="large" image="btnCompWiseSaleRegister" tag="COMP_W_REG_D.COMP_W_REG_D" onAction="RunMacro"/>
+          <button id="btnDaburEInvoice" label="DABUR E-INVOICE" size="large" image="btnDaburEInvoice" tag="DABUR.DABUR_E_INVOICE" onAction="RunMacro"/>
+          <button id="btnIrnUpload" label="IRN Upload Format" size="large" image="btnIrnUpload" tag="IRN_UPLOAD.IRN_UPLOAD" onAction="RunMacro"/>
+          <button id="btnCollectionOutstanding" label="Collection Outstanding Report Setup" size="large" image="btnCollectionOutstanding" tag="Collection_Outstanding_Report1.Collection_Outstanding_Report" onAction="RunMacro"/>
+          <button id="btnVanWiseOutstanding" label="Van_Wise Outstanding Report" size="large" image="btnVanWiseOutstanding" tag="Van_Wise_Outstanding_Report.Van_Wise_Outstanding_Report" onAction="RunMacro"/>
+          <button id="btnKeepOnlyHighlighted" label="Keep Only Highlighted Cell Rows" size="large" image="btnKeepOnlyHighlighted" tag="Keep_Only_Selected.Keep_Only_Selected" onAction="RunMacro"/>
+          <button id="btnFillDownBlanks" label="Fill Down Blanks" size="large" image="btnFillDownBlanks" tag="Fill_Down.FillDownBlanks" onAction="RunMacro"/>
+          <button id="btnPartyReceivingSummary" label="Party Wise Receiving Summary" size="large" image="btnPartyReceivingSummary" tag="Sale_Receiving_Summary.Receiving_Summary" onAction="RunMacro"/>
+          <button id="btnEInvoiceValidation" label="E Invoice Validation" size="large" image="btnEInvoiceValidation" tag="E_Invoice_Validation.E_Invoice_Validation" onAction="RunMacro"/>
+          <button id="btnDaburSaleFormatHA" label="Dabur Sale Fromat HA" size="large" image="btnDaburSaleFormatHA" tag="Dabur_SaleFromat_HA.Dabur_SaleFromat_HA" onAction="RunMacro"/>
+          <button id="btnPasswordBreaker" label="Password Breaker" size="large" image="btnPasswordBreaker" tag="Break_Password.PasswordBreaker" onAction="RunMacro"/>
+          <button id="btnWisdomStkreport" label="Stkreport.Wisdom_Stkreport" size="large" image="btnWisdomStkreport" tag="Wisdom_Stkreport.Wisdom_Stkreport" onAction="RunMacro"/>
+          <button id="btnConvertSelectedCells" label="Convert Selected Cells" size="large" image="btnConvertSelectedCells" tag="ConvertDatesAndNumbers.ConvertSelectedCells" onAction="RunMacro"/>
+          <button id="btnCombineHeaderClean" label="Combine Header And Clean" size="large" image="btnCombineHeaderClean" tag="CombineHeaderAndClean.CombineHeaderAndClean" onAction="RunMacro"/>
+          <button id="btnMaricoHideColumns" label="Marico Hide Unwanted Columns" size="large" image="btnMaricoHideColumns" tag="Marico_HideUnwantedColumns.Marico_HideUnwantedColumns" onAction="RunMacro"/>
+          <button id="btnFlipkartPO" label="Flipkart PO Formatter" size="large" image="btnFlipkartPO" tag="Flipkart_PO_formatter.Flipkart_PO_formatter" onAction="RunMacro"/>
+          <button id="btnBlinkitPO" label="Blinkit PO Format" size="large" image="btnBlinkitPO" tag="BlinkitPOFormatter.FormatBlinkitPO" onAction="RunMacro"/>
+        </group>
+
+        <group id="grpDmsTata" label="DMS TATA">
+          <button id="btnDmsCustomerSale" label="Customer Wise Sale Detail DMS" size="large" image="btnDmsCustomerSale" tag="DMS_REP.DMS_REP" onAction="RunMacro"/>
+          <button id="btnDmsHsnSummary" label="DMS HSN Summary" size="large" image="btnDmsHsnSummary" tag="DMS_HSN_SUMMARY.DMS_HSN_SUMMARY" onAction="RunMacro"/>
+          <button id="btnDmsStock" label="DMS Stock Statement" size="large" image="btnDmsStock" tag="DMS_STK.DMS_STK" onAction="RunMacro"/>
+          <button id="btnEInvoiceDmsMax" label="E Invoice Format DMS MAX" size="large" image="btnEInvoiceDmsMax" tag="E_invoice_Format_DMS_MAX.E_invoice_Format_DMS_MAX" onAction="RunMacro"/>
+        </group>
+
+        <group id="grpReliance" label="Reliance">
+          <button id="btnSrmPoExcel" label="SRM Po Excel" size="large" image="btnSrmPoExcel" tag="RIL_SRM_Excel_Filter_Data.RIL_SRM_Excel_Filter_Data" onAction="RunMacro"/>
+          <button id="btnPrintSetup" label="Print_Setup" size="large" image="btnPrintSetup" tag="Print_Setup_RIL.Print_Setup" onAction="RunMacro"/>
+          <button id="btnRilPoToExcel" label="RIL Po To Excel" size="large" image="btnRilPoToExcel" tag="RIL_PO_TO_EXCEL.RIL_PO_TO_EXCEL" onAction="RunMacro"/>
+          <button id="btnProcessAmendment" label="Process For Amendment" size="large" image="btnProcessAmendment" tag="RIL_Process_For_Amendment.RIL_Process_For_Amendment" onAction="RunMacro"/>
+          <button id="btnInsertBrandAsn" label="Insert Brand Name ASN" size="large" image="btnInsertBrandAsn" tag="RIL_Insert_Brand_Name_ASN.RIL_Insert_Brand_Name_ASN" onAction="RunMacro"/>
+          <button id="btnRilAppointment" label="RIL Appointment" size="large" image="btnRilAppointment" tag="RIL_Appointment_Auto.RIL_Appointment" onAction="RunMacro"/>
+        </group>
+
+        <group id="grpAbout" label="About">
+          <labelControl id="lblVersion" getLabel="GetVersionLabel"/>
+          <button id="btnSettings" label="Settings" size="large" image="btnSettings" onAction="OpenSettings"/>
+          <button id="btnCheckUpdates" label="Check for updates" size="large" image="btnCheckUpdates" onAction="CheckForUpdates"/>
+        </group>
+
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>
