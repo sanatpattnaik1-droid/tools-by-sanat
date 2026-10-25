@@ -11,8 +11,8 @@ Option Explicit
 '------------------------------------------------------------------
 
 ' ---- Settings (edit here) ----
-Private Const KEEP_STATUS As String = "APPROVED"      ' comma separated, "" = all
-Private Const KEEP_FROM_OU As String = "VS54377"      ' comma separated, "" = all
+Private Const KEEP_STATUS As String = ""              ' comma separated, "" = all (was "APPROVED")
+Private Const KEEP_FROM_OU As String = ""             ' comma separated, "" = all (was "VS54377")
 Private Const ONLY_PENDING As Boolean = False         ' True = keep only Pending Quantity > 0
 Private Const BRAND_RENAME As String = "Choki Choki=Malkist,KOPIKO=Malkist"   ' Old=New,Old=New
 
