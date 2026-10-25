@@ -18,6 +18,9 @@ Private Const STRICT_URLS As Boolean = True
 Private Const MAIN_NAME As String = "ToolsBySanat.xlam"
 Private Const MAX_BYTES As Long = 20971520   ' 20 MB
 
+Private mDetail As String                    ' why the last check failed, shown by "Check for updates"
+Private mSoftFail As Boolean                 ' last request got no HTTP answer at all (try the next component)
+
 ' ---------------------------------------------------------------- entry points
 
 Public Sub Startup()
@@ -48,7 +51,8 @@ Public Sub CheckNow()
         MsgBox "Version " & Mid$(r, 8) & " was downloaded." & vbCrLf & _
                "Close all Excel windows and open Excel again to finish the update.", vbInformation, "Tools By Sanat"
     Else
-        MsgBox "Could not check for updates. Please check your internet connection and try again later.", vbExclamation, "Tools By Sanat"
+        MsgBox "Could not check for updates." & vbCrLf & vbCrLf & mDetail & vbCrLf & vbCrLf & _
+               "Please check your internet connection and try again later.", vbExclamation, "Tools By Sanat"
     End If
 End Sub
 
@@ -150,18 +154,19 @@ Private Function CheckAndStage() As String
     Dim localVer As String, pend As String, dl As String
 
     CheckAndStage = "error"
+    mDetail = ""
     If Not UpdatesConfigured() Then CheckAndStage = "off": Exit Function
     On Error GoTo Fail
 
-    If Not HttpGet(VERSION_URL & "?t=" & Format$(Now, "yyyymmddhhnnss"), 10, body) Then Exit Function
+    If Not HttpGet(VERSION_URL & "?t=" & Format$(Now, "yyyymmddhhnnss"), 10, body) Then mDetail = "Reading the version information failed: " & mDetail: Exit Function
     json = StrConv(body, vbUnicode)
     remoteVer = JsonValue(json, "version")
     url = JsonValue(json, "url")
     sha = LCase$(JsonValue(json, "sha256"))
-    If Len(remoteVer) = 0 Or Len(url) = 0 Or Len(sha) <> 64 Or sha Like "*[!0-9a-f]*" Then Exit Function
+    If Len(remoteVer) = 0 Or Len(url) = 0 Or Len(sha) <> 64 Or sha Like "*[!0-9a-f]*" Then mDetail = "The version information is not in the expected format.": Exit Function
 
     localVer = InstalledVersion()
-    If Len(localVer) = 0 Then Exit Function
+    If Len(localVer) = 0 Then mDetail = "The installed add-in did not report its version.": Exit Function
     If Not IsNewer(remoteVer, localVer) Then CheckAndStage = "none": Exit Function
 
     pend = DataDir() & "pending\" & MAIN_NAME
@@ -170,14 +175,15 @@ Private Function CheckAndStage() As String
     End If
 
     EnsureDirs "pending"
-    If Not HttpGet(url, 120, body) Then Exit Function
-    If UBound(body) < 1 Or UBound(body) + 1 > MAX_BYTES Then Exit Function
-    If body(0) <> 80 Or body(1) <> 75 Then Exit Function          ' must be a zip ("PK"): .xlam is one
+    If Not HttpGet(url, 120, body) Then mDetail = "Downloading the update failed: " & mDetail: Exit Function
+    If UBound(body) < 1 Or UBound(body) + 1 > MAX_BYTES Then mDetail = "The downloaded file has an unexpected size.": Exit Function
+    If body(0) <> 80 Or body(1) <> 75 Then mDetail = "The downloaded file is not an add-in file.": Exit Function   ' .xlam is a zip ("PK")
 
     dl = DataDir() & "pending\download.tmp"
     If Len(Dir(dl)) > 0 Then Kill dl
-    If Not SaveBytes(dl, body) Then Exit Function
+    If Not SaveBytes(dl, body) Then mDetail = "Could not save the download to " & dl: Exit Function
     If FileSha256(dl) <> sha Then
+        mDetail = "The downloaded file failed the integrity check."
         Kill dl
         Exit Function
     End If
@@ -188,6 +194,7 @@ Private Function CheckAndStage() As String
     CheckAndStage = "staged:" & remoteVer
     Exit Function
 Fail:
+    mDetail = mDetail & "Unexpected error " & Err.Number & ": " & Err.Description
     CheckAndStage = "error"
 End Function
 
@@ -231,29 +238,92 @@ Private Function IsAllowedUrl(ByVal url As String) As Boolean
     IsAllowedUrl = (host = "github.com" Or host = "raw.githubusercontent.com")
 End Function
 
-' MSXML (WinINet) is used so the system proxy settings apply. Redirects (GitHub release downloads) are followed.
+' Tries three Windows web components in turn and keeps the first good answer:
+'   1. MSXML2.XMLHTTP       uses the system proxy settings, but cannot follow GitHub's cross-site download redirect
+'   2. MSXML2.ServerXMLHTTP follows redirects
+'   3. WinHttp.WinHttpRequest follows redirects
+' Every failure is noted in mDetail so "Check for updates" can say why.
 Private Function HttpGet(ByVal url As String, ByVal timeoutSec As Long, ByRef body As Variant) As Boolean
-    Dim req As Object, t0 As Single
-    If Not IsAllowedUrl(url) Then Exit Function
+    Dim k As Long
+    If Not IsAllowedUrl(url) Then mDetail = mDetail & "address not allowed; ": Exit Function
+    For k = 1 To 3
+        mSoftFail = False
+        If TryGet(k, url, timeoutSec, body) Then HttpGet = True: Exit Function
+        If Not mSoftFail Then Exit For      ' network down, timeout or HTTP error: another component will not help
+    Next k
+End Function
+
+Private Function TryGet(ByVal kind As Long, ByVal url As String, ByVal timeoutSec As Long, ByRef body As Variant) As Boolean
+    Dim req As Object, t0 As Single, comp As String, st As Long, px As String
+    Select Case kind
+        Case 1: comp = "XMLHTTP"
+        Case 2: comp = "ServerXMLHTTP"
+        Case Else: comp = "WinHttp"
+    End Select
     On Error GoTo Fail
-    Set req = CreateObject("MSXML2.XMLHTTP.6.0")
-    req.Open "GET", url, True
-    req.setRequestHeader "Cache-Control", "no-cache"
-    req.send
-    t0 = Timer
-    Do While req.readyState <> 4
-        DoEvents
-        If Timer < t0 Or Timer - t0 > timeoutSec Then
-            req.abort
-            Exit Function
-        End If
-    Loop
-    If req.Status <> 200 Then Exit Function
+    Select Case kind
+        Case 1
+            Set req = CreateObject("MSXML2.XMLHTTP.6.0")
+            req.Open "GET", url, True
+            req.setRequestHeader "Cache-Control", "no-cache"
+            req.send
+            t0 = Timer
+            Do While req.readyState <> 4
+                DoEvents
+                If Timer < t0 Or Timer - t0 > timeoutSec Then
+                    req.abort
+                    mDetail = mDetail & comp & ": timed out; "
+                    Exit Function
+                End If
+            Loop
+        Case 2
+            Set req = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+            req.setTimeouts 4000, 4000, 10000, timeoutSec * 1000
+            px = IeProxy()
+            If Len(px) > 0 Then req.setProxy 2, px
+            req.Open "GET", url, False
+            req.setRequestHeader "Cache-Control", "no-cache"
+            req.send
+        Case Else
+            Set req = CreateObject("WinHttp.WinHttpRequest.5.1")
+            req.SetTimeouts 4000, 4000, 10000, timeoutSec * 1000
+            px = IeProxy()
+            If Len(px) > 0 Then req.SetProxy 2, px
+            req.Open "GET", url, False
+            req.setRequestHeader "Cache-Control", "no-cache"
+            req.send
+    End Select
+    st = req.Status
+    If st <> 200 Then
+        mDetail = mDetail & comp & ": HTTP " & st & "; "
+        mSoftFail = (st = 0)                ' "no answer" is what XMLHTTP gives for a blocked redirect
+        Exit Function
+    End If
     body = req.responseBody
-    HttpGet = True
+    TryGet = True
     Exit Function
 Fail:
-    HttpGet = False
+    mDetail = mDetail & comp & ": " & Err.Description & "; "
+End Function
+
+' The proxy that Windows / Internet Options uses, as "host:port", or "" for a direct connection.
+' (MSXML2.XMLHTTP reads it by itself; the two fallbacks need it passed in. PAC scripts are not supported.)
+Private Function IeProxy() As String
+    Dim sh As Object, key As String, s As String, parts() As String, i As Long
+    On Error GoTo Done
+    Set sh = CreateObject("WScript.Shell")
+    key = "HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\"
+    If CLng(sh.RegRead(key & "ProxyEnable")) <> 1 Then Exit Function
+    s = CStr(sh.RegRead(key & "ProxyServer"))
+    If InStr(s, "=") = 0 Then
+        IeProxy = s
+    Else
+        parts = Split(s, ";")                       ' "http=a:80;https=b:443"
+        For i = 0 To UBound(parts)
+            If LCase$(Left$(parts(i), 6)) = "https=" Then IeProxy = Mid$(parts(i), 7): Exit Function
+        Next i
+    End If
+Done:
 End Function
 
 ' ---------------------------------------------------------------- files
