@@ -7,45 +7,45 @@
           <box id="box_grpHaReports_1" boxStyle="vertical">
             <button id="btnCompWiseSaleRegister" label="Company Sale Register" screentip="Cmp Wise Sale Register (Detail)" size="normal" image="btnCompWiseSaleRegister" tag="COMP_W_REG_D.COMP_W_REG_D" onAction="RunMacro"/>
             <button id="btnPartyReceivingSummary" label="Receiving Summary" screentip="Party Wise Receiving Summary" size="normal" image="btnPartyReceivingSummary" tag="Sale_Receiving_Summary.Receiving_Summary" onAction="RunMacro"/>
-            <button id="btnDaburSaleFormatHA" label="Dabur Sale Format" screentip="Dabur Sale Fromat HA" size="normal" image="btnDaburSaleFormatHA" tag="Dabur_SaleFromat_HA.Dabur_SaleFromat_HA" onAction="RunMacro"/>
           </box>
+          <button id="btnIrnUpload" label="IRN Upload Format" screentip="IRN Upload Format" size="large" image="btnIrnUpload" tag="IRN_UPLOAD.IRN_UPLOAD" onAction="RunMacro"/>
+          <button id="btnEInvoiceValidation" label="E-Invoice Validation" screentip="E Invoice Validation" size="large" image="btnEInvoiceValidation" tag="E_Invoice_Validation.E_Invoice_Validation" onAction="RunMacro"/>
           <box id="box_grpHaReports_2" boxStyle="vertical">
-            <button id="btnDaburEInvoice" label="Dabur E-Invoice" screentip="DABUR E-INVOICE" size="normal" image="btnDaburEInvoice" tag="DABUR.DABUR_E_INVOICE" onAction="RunMacro"/>
-            <button id="btnIrnUpload" label="IRN Upload Format" screentip="IRN Upload Format" size="normal" image="btnIrnUpload" tag="IRN_UPLOAD.IRN_UPLOAD" onAction="RunMacro"/>
-            <button id="btnEInvoiceValidation" label="E-Invoice Validation" screentip="E Invoice Validation" size="normal" image="btnEInvoiceValidation" tag="E_Invoice_Validation.E_Invoice_Validation" onAction="RunMacro"/>
-          </box>
-          <box id="box_grpHaReports_3" boxStyle="vertical">
             <button id="btnCollectionOutstanding" label="Collection Outstanding" screentip="Collection Outstanding Report Setup" size="normal" image="btnCollectionOutstanding" tag="Collection_Outstanding_Report1.Collection_Outstanding_Report" onAction="RunMacro"/>
             <button id="btnVanWiseOutstanding" label="Van Wise Outstanding" screentip="Van_Wise Outstanding Report" size="normal" image="btnVanWiseOutstanding" tag="Van_Wise_Outstanding_Report.Van_Wise_Outstanding_Report" onAction="RunMacro"/>
-            <button id="btnWisdomStkreport" label="Wisdom Stock Report" screentip="Stkreport.Wisdom_Stkreport" size="normal" image="btnWisdomStkreport" tag="Wisdom_Stkreport.Wisdom_Stkreport" onAction="RunMacro"/>
           </box>
         </group>
 
         <group id="grpRetail" label="Retail Formats">
-          <box id="box_grpRetail_1" boxStyle="vertical">
-            <button id="btnFlipkartPO" label="Flipkart PO Format" screentip="Flipkart PO Formatter" size="normal" image="btnFlipkartPO" tag="Flipkart_PO_formatter.Flipkart_PO_formatter" onAction="RunMacro"/>
-            <button id="btnBlinkitPO" label="Blinkit PO Format" screentip="Blinkit PO Format" size="normal" image="btnBlinkitPO" tag="BlinkitPOFormatter.FormatBlinkitPO" onAction="RunMacro"/>
-            <button id="btnMaricoHideColumns" label="Marico Hide Columns" screentip="Marico Hide Unwanted Columns" size="normal" image="btnMaricoHideColumns" tag="Marico_HideUnwantedColumns.Marico_HideUnwantedColumns" onAction="RunMacro"/>
-          </box>
+          <button id="btnFlipkartPO" label="Flipkart PO Format" screentip="Flipkart PO Formatter" size="large" image="btnFlipkartPO" tag="Flipkart_PO_formatter.Flipkart_PO_formatter" onAction="RunMacro"/>
+          <button id="btnBlinkitPO" label="Blinkit PO Format" screentip="Blinkit PO Format" size="large" image="btnBlinkitPO" tag="BlinkitPOFormatter.FormatBlinkitPO" onAction="RunMacro"/>
+          <button id="btnMaricoHideColumns" label="Marico Hide Columns" screentip="Marico Hide Unwanted Columns" size="large" image="btnMaricoHideColumns" tag="Marico_HideUnwantedColumns.Marico_HideUnwantedColumns" onAction="RunMacro"/>
         </group>
 
         <group id="grpUtilities" label="Utilities">
           <box id="box_grpUtilities_1" boxStyle="vertical">
             <button id="btnKeepOnlyHighlighted" label="Keep Highlighted Rows" screentip="Keep Only Highlighted Cell Rows" size="normal" image="btnKeepOnlyHighlighted" tag="Keep_Only_Selected.Keep_Only_Selected" onAction="RunMacro"/>
             <button id="btnFillDownBlanks" label="Fill Down Blanks" screentip="Fill Down Blanks" size="normal" image="btnFillDownBlanks" tag="Fill_Down.FillDownBlanks" onAction="RunMacro"/>
-            <button id="btnConvertSelectedCells" label="Convert Selected Cells" screentip="Convert Selected Cells" size="normal" image="btnConvertSelectedCells" tag="ConvertDatesAndNumbers.ConvertSelectedCells" onAction="RunMacro"/>
+            <button id="btnDaburSaleFormatHA" label="Dabur Sale Format" screentip="Dabur Sale Fromat HA" size="normal" image="btnDaburSaleFormatHA" tag="Dabur_SaleFromat_HA.Dabur_SaleFromat_HA" onAction="RunMacro"/>
           </box>
           <box id="box_grpUtilities_2" boxStyle="vertical">
-            <button id="btnCombineHeaderClean" label="Combine Header + Clean" screentip="Combine Header And Clean" size="normal" image="btnCombineHeaderClean" tag="CombineHeaderAndClean.CombineHeaderAndClean" onAction="RunMacro"/>
+            <button id="btnConvertSelectedCells" label="Convert Selected Cells" screentip="Convert Selected Cells" size="normal" image="btnConvertSelectedCells" tag="ConvertDatesAndNumbers.ConvertSelectedCells" onAction="RunMacro"/>
+            <button id="btnDaburEInvoice" label="Dabur E-Invoice" screentip="DABUR E-INVOICE" size="normal" image="btnDaburEInvoice" tag="DABUR.DABUR_E_INVOICE" onAction="RunMacro"/>
+            <button id="btnCombineHeaderClean" label="Wisdom_Combine Header + Clean" screentip="Combine Header And Clean" size="normal" image="btnCombineHeaderClean" tag="CombineHeaderAndClean.CombineHeaderAndClean" onAction="RunMacro"/>
+          </box>
+          <box id="box_grpUtilities_3" boxStyle="vertical">
             <button id="btnPasswordBreaker" label="Password Breaker" screentip="Password Breaker" size="normal" image="btnPasswordBreaker" tag="Break_Password.PasswordBreaker" onAction="RunMacro"/>
+            <button id="btnWisdomStkreport" label="Wisdom Stock Report" screentip="Stkreport.Wisdom_Stkreport" size="normal" image="btnWisdomStkreport" tag="Wisdom_Stkreport.Wisdom_Stkreport" onAction="RunMacro"/>
           </box>
         </group>
 
-        <group id="grpDms" label="DMS TATA">
-          <button id="btnDmsCustomerSale" label="Customer Wise Sale" screentip="Customer Wise Sale Detail DMS" size="large" image="btnDmsCustomerSale" tag="DMS_REP.DMS_REP" onAction="RunMacro"/>
-          <button id="btnDmsHsnSummary" label="HSN Summary" screentip="DMS HSN Summary" size="large" image="btnDmsHsnSummary" tag="DMS_HSN_SUMMARY.DMS_HSN_SUMMARY" onAction="RunMacro"/>
-          <button id="btnDmsStock" label="Stock Statement" screentip="DMS Stock Statement" size="large" image="btnDmsStock" tag="DMS_STK.DMS_STK" onAction="RunMacro"/>
-          <button id="btnEInvoiceDmsMax" label="E-Invoice Format MAX" screentip="E Invoice Format DMS MAX" size="large" image="btnEInvoiceDmsMax" tag="E_invoice_Format_DMS_MAX.E_invoice_Format_DMS_MAX" onAction="RunMacro"/>
+        <group id="grpDms" label="Mavic Report">
+          <menu id="mnu_Dms" label="Mavic Report" size="large" image="mnu_Dms" itemSize="normal">
+            <button id="btnDmsCustomerSale" label="Customer Wise Sale" screentip="Customer Wise Sale Detail DMS" image="btnDmsCustomerSale" tag="DMS_REP.DMS_REP" onAction="RunMacro"/>
+            <button id="btnDmsHsnSummary" label="HSN Summary" screentip="DMS HSN Summary" image="btnDmsHsnSummary" tag="DMS_HSN_SUMMARY.DMS_HSN_SUMMARY" onAction="RunMacro"/>
+            <button id="btnDmsStock" label="Stock Statement" screentip="DMS Stock Statement" image="btnDmsStock" tag="DMS_STK.DMS_STK" onAction="RunMacro"/>
+            <button id="btnEInvoiceDmsMax" label="E-Invoice Format MAX" screentip="E Invoice Format DMS MAX" image="btnEInvoiceDmsMax" tag="E_invoice_Format_DMS_MAX.E_invoice_Format_DMS_MAX" onAction="RunMacro"/>
+          </menu>
         </group>
 
         <group id="grpReliance" label="Reliance">

@@ -34,7 +34,8 @@ $icons = @(
     @('btnSrmPoExcel',             0xE8C8, $blue),   @('btnPrintSetup',            0xE749, $blue),
     @('btnRilPoToExcel',           0xE7C3, $blue),   @('btnProcessAmendment',      0xE72C, $blue),
     @('btnInsertBrandAsn',         0xE8EC, $blue),   @('btnRilAppointment',        0xE787, $blue),
-    @('btnCheckUpdates',           0xE895, $teal),   @('btnSettings',              0xE713, $violet)
+    @('btnCheckUpdates',           0xE895, $teal),   @('btnSettings',              0xE713, $violet),
+    @('mnu_Dms',                   0xE8FD, $orange)      # the compact DMS TATA drop-down button
 )
 
 $brand = @{
@@ -110,7 +111,9 @@ New-Item -ItemType Directory -Force $OutDir | Out-Null
 $S = 64
 $white = [System.Drawing.Color]::White; $black = [System.Drawing.Color]::Black
 
-$list = if ($Only) { $icons | Where-Object { $_[0] -in $Only } } else { $icons }
+# (a list, not a pipeline: a pipeline would unroll a single matching entry into its parts)
+$list = New-Object System.Collections.Generic.List[object]
+foreach ($i in $icons) { if (-not $Only -or $i[0] -in $Only) { $list.Add($i) } }
 foreach ($i in $list) {
     $id, $cp, $hex = $i
     $col = C $hex
@@ -185,4 +188,4 @@ foreach ($i in $list) {
     $bmp.Save((Join-Path $OutDir "$id.png"), [System.Drawing.Imaging.ImageFormat]::Png)
     $g.Dispose(); $bmp.Dispose()
 }
-"Wrote $(@($list).Count) icons (style $Style) to $OutDir (font: $fontName)"
+"Wrote $($list.Count) icons (style $Style) to $OutDir (font: $fontName)"

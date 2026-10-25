@@ -137,7 +137,7 @@ Private Function WriteData(ws As Worksheet, data As Variant, ByVal stateFilter A
 
     Dim outArr() As Variant, r As Long, src As String
     ReDim outArr(1 To UBound(data, 1), 1 To nOut)
-    For k = 1 To nOut: outArr(1, k) = names(k): Next k
+    For k = 1 To nOut: outArr(1, k) = SafeText(names(k)): Next k
     r = 1
     For i = 2 To UBound(data, 1)
         If Len(stateFilter) > 0 And stateIdx > 0 Then
@@ -148,12 +148,14 @@ Private Function WriteData(ws As Worksheet, data As Variant, ByVal stateFilter A
             src = CStr(data(i, srcIdx(k)))
             If Len(src) = 0 Then
                 ' leave blank
-            ElseIf IsIn(names(k), textCols) Or IsIn(names(k), textOnly) Then
-                outArr(r, k) = src
+            ElseIf IsIn(names(k), textCols) Then
+                outArr(r, k) = src                       ' these columns are formatted as text
+            ElseIf IsIn(names(k), textOnly) Then
+                outArr(r, k) = SafeText(src)             ' text from the file must not become a formula
             ElseIf IsIn(names(k), dateCols) Then
-                outArr(r, k) = ParseDate(src, names(k) = "appointment_date")
+                outArr(r, k) = Guard(ParseDate(src, names(k) = "appointment_date"))
             Else
-                outArr(r, k) = ParseNumber(src)
+                outArr(r, k) = Guard(ParseNumber(src))
             End If
         Next k
 NextRow:
@@ -162,6 +164,11 @@ NextRow:
     If r > 1 Then ws.Range("A1").Resize(r, nOut).Value = SliceRows(outArr, r, nOut)
     If r < UBound(data, 1) Then ws.Range(ws.Cells(r + 1, 1), ws.Cells(UBound(data, 1), nOut)).Clear
     WriteData = r - 1
+End Function
+
+' A value that could not be parsed as a date / number comes back as the original text: make it safe too.
+Private Function Guard(ByVal v As Variant) As Variant
+    If VarType(v) = vbString Then Guard = SafeText(CStr(v)) Else Guard = v
 End Function
 
 Private Function SliceRows(arr As Variant, ByVal nRows As Long, ByVal nCols As Long) As Variant

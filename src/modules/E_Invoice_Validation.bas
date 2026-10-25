@@ -11,7 +11,7 @@ If Range("A5").Value = "SUPPLY_TYPE_CODE" Then
      If jsonFile = False Then Exit Sub
  End If
  Application.ScreenUpdating = False
-    Workbooks.Open jsonFile
+    If Not OpenTrustedWorkbook(CStr(jsonFile)) Then Application.ScreenUpdating = True: Exit Sub
     Windows("JSON_preperation_FormA.xlsm").Activate
     Dim wb As Workbook
 

@@ -113,7 +113,9 @@ finally { $zip.Dispose() }
 $ver.sha256 = (Get-FileHash $out -Algorithm SHA256).Hash.ToLower()
 $cfg = Get-Content (Join-Path $root 'updater.config.json') -Raw | ConvertFrom-Json
 $ver.url = if ($cfg.repo) { "https://github.com/$($cfg.repo)/releases/download/v$($ver.version)/ToolsBySanat.xlam" } else { '' }
-$ver | ConvertTo-Json | Set-Content $verFile -Encoding UTF8
+# the signature is added later by sign-release.ps1 (it needs the owner's private key); a new build always clears it
+[ordered]@{ version = $ver.version; sha256 = $ver.sha256; url = $ver.url; signature = '' } | ConvertTo-Json | Set-Content $verFile -Encoding UTF8
 
 "Built $out"
 "Version $($ver.version)  SHA-256 $($ver.sha256)"
+"version.json is NOT signed yet: run sign-release.ps1 before publishing."

@@ -12,8 +12,16 @@ Option Explicit
 '                  locks loaded add-ins) -> open the main add-in -> a few seconds later check GitHub
 '                  for a newer version, download it, verify the SHA-256 and stage it for next start.
 ' Every failure is silent and keeps the current version. HTTPS and github hosts only.
+'
+' Trust model: version.json carries an RSA signature (made offline by the owner) over
+'   "ToolsBySanat|<version>|<sha256>|<url>". The loader only accepts an update when that signature verifies
+'   against PUBLIC_KEY (built in), the url starts with DOWNLOAD_PREFIX (the official repo's releases) and the
+'   downloaded file matches the signed SHA-256. The same checks run again right before the file is swapped in.
+'   Without a public key the updater stays off (fails closed).
 
 Private Const VERSION_URL As String = "__VERSION_URL__"
+Private Const DOWNLOAD_PREFIX As String = "__DOWNLOAD_PREFIX__"
+Private Const PUBLIC_KEY As String = "__PUBLIC_KEY__"
 Private Const STRICT_URLS As Boolean = True
 Private Const MAIN_NAME As String = "ToolsBySanat.xlam"
 Private Const MAX_BYTES As Long = 20971520   ' 20 MB
@@ -67,7 +75,8 @@ Private Function DataDir() As String
 End Function
 
 Private Function UpdatesConfigured() As Boolean
-    UpdatesConfigured = (Len(VERSION_URL) > 0 And InStr(VERSION_URL, "__") = 0)
+    UpdatesConfigured = (Len(VERSION_URL) > 0 And Left$(VERSION_URL, 2) <> "__" And _
+                         Left$(DOWNLOAD_PREFIX, 2) <> "__" And Left$(PUBLIC_KEY, 2) <> "__")
 End Function
 
 ' ---------------------------------------------------------------- opening / swapping
@@ -110,15 +119,16 @@ End Function
 Private Sub ApplyPending()
     Dim pend As String, hashFile As String, p As String, prev As String
     pend = DataDir() & "pending\" & MAIN_NAME
-    hashFile = DataDir() & "pending\sha256.txt"
+    hashFile = DataDir() & "pending\manifest.txt"
     p = AddInsDir() & MAIN_NAME
     prev = DataDir() & "prev\" & MAIN_NAME
     If Len(Dir(pend)) = 0 Then Exit Sub
 
     On Error GoTo Fail
-    ' re-verify: the file may have been touched since it was staged
-    If LCase$(Trim$(Replace(Replace(ReadText(hashFile), vbCr, ""), vbLf, ""))) <> FileSha256(pend) Then
+    ' re-verify: the file and its signed manifest may have been touched since they were staged
+    If Not ManifestValid(hashFile, pend) Then
         Kill pend
+        If Len(Dir(hashFile)) > 0 Then Kill hashFile
         Exit Sub
     End If
 
@@ -150,7 +160,7 @@ End Function
 ' Returns "off" (not configured), "none" (up to date), "staged:<version>" (downloaded, applies at
 ' next start) or "error".
 Private Function CheckAndStage() As String
-    Dim body As Variant, json As String, remoteVer As String, url As String, sha As String
+    Dim body As Variant, json As String, remoteVer As String, url As String, sha As String, sig As String
     Dim localVer As String, pend As String, dl As String
 
     CheckAndStage = "error"
@@ -163,7 +173,10 @@ Private Function CheckAndStage() As String
     remoteVer = JsonValue(json, "version")
     url = JsonValue(json, "url")
     sha = LCase$(JsonValue(json, "sha256"))
+    sig = JsonValue(json, "signature")
     If Len(remoteVer) = 0 Or Len(url) = 0 Or Len(sha) <> 64 Or sha Like "*[!0-9a-f]*" Then mDetail = "The version information is not in the expected format.": Exit Function
+    If Not VerifySignature(remoteVer, sha, url, sig) Then mDetail = mDetail & "The update information is not signed by the owner, so it was ignored.": Exit Function
+    If LCase$(Left$(url, Len(DOWNLOAD_PREFIX))) <> LCase$(DOWNLOAD_PREFIX) Then mDetail = "The update address is not the official one, so it was ignored.": Exit Function
 
     localVer = InstalledVersion()
     If Len(localVer) = 0 Then mDetail = "The installed add-in did not report its version.": Exit Function
@@ -171,7 +184,11 @@ Private Function CheckAndStage() As String
 
     pend = DataDir() & "pending\" & MAIN_NAME
     If Len(Dir(pend)) > 0 Then
-        If FileSha256(pend) = sha Then CheckAndStage = "staged:" & remoteVer: Exit Function
+        If FileSha256(pend) = sha Then
+            WriteText DataDir() & "pending\manifest.txt", remoteVer & vbCrLf & sha & vbCrLf & url & vbCrLf & sig
+            CheckAndStage = "staged:" & remoteVer
+            Exit Function
+        End If
     End If
 
     EnsureDirs "pending"
@@ -190,7 +207,7 @@ Private Function CheckAndStage() As String
 
     If Len(Dir(pend)) > 0 Then Kill pend
     Name dl As pend
-    WriteText DataDir() & "pending\sha256.txt", sha
+    WriteText DataDir() & "pending\manifest.txt", remoteVer & vbCrLf & sha & vbCrLf & url & vbCrLf & sig
     CheckAndStage = "staged:" & remoteVer
     Exit Function
 Fail:
@@ -209,6 +226,44 @@ Private Function IsNewer(ByVal remoteVer As String, ByVal installedVer As String
         If x > y Then IsNewer = True: Exit Function
         If x < y Then Exit Function
     Next i
+End Function
+
+' True if the signature (hex) is a valid RSA/SHA-256 signature, made with the owner's private key, over
+' "ToolsBySanat|<version>|<sha256>|<url>". Uses the .NET RSA component that ships with Windows.
+Private Function VerifySignature(ByVal ver As String, ByVal sha As String, ByVal url As String, ByVal sigHex As String) As Boolean
+    Dim rsa As Object, b() As Byte, d() As Byte, i As Long, msg As String
+    On Error GoTo Fail
+    sigHex = LCase$(Replace(Replace(Trim$(sigHex), vbCr, ""), vbLf, ""))
+    If Len(sigHex) < 128 Or Len(sigHex) Mod 2 <> 0 Or sigHex Like "*[!0-9a-f]*" Then mDetail = mDetail & "No valid signature. ": Exit Function
+    ReDim b(0 To Len(sigHex) \ 2 - 1)
+    For i = 0 To UBound(b)
+        b(i) = CByte("&H" & Mid$(sigHex, i * 2 + 1, 2))
+    Next i
+    msg = "ToolsBySanat|" & ver & "|" & sha & "|" & url
+    d = StrConv(msg, vbFromUnicode)                  ' typed byte arrays: the .NET call rejects an inline Variant
+    Set rsa = CreateObject("System.Security.Cryptography.RSACryptoServiceProvider")
+    rsa.FromXmlString PUBLIC_KEY
+    VerifySignature = CBool(rsa.VerifyData(d, "SHA256", b))
+    Exit Function
+Fail:
+    mDetail = mDetail & "Signature check error " & Err.Number & ": " & Err.Description & ". "
+    VerifySignature = False
+End Function
+
+' The staged update's manifest (version, sha256, url, signature - one per line) must carry a valid signature,
+' an official address, and describe exactly the staged file.
+Private Function ManifestValid(ByVal manifestFile As String, ByVal stagedFile As String) As Boolean
+    Dim lines() As String
+    On Error GoTo Fail
+    If Len(Dir(manifestFile)) = 0 Then Exit Function
+    lines = Split(Replace(ReadText(manifestFile), vbCr, ""), vbLf)
+    If UBound(lines) < 3 Then Exit Function
+    If Not VerifySignature(Trim$(lines(0)), Trim$(lines(1)), Trim$(lines(2)), lines(3)) Then Exit Function
+    If LCase$(Left$(Trim$(lines(2)), Len(DOWNLOAD_PREFIX))) <> LCase$(DOWNLOAD_PREFIX) Then Exit Function
+    ManifestValid = (LCase$(Trim$(lines(1))) = FileSha256(stagedFile))
+    Exit Function
+Fail:
+    ManifestValid = False
 End Function
 
 ' Minimal reader for {"key": "value"} pairs, enough for version.json.
@@ -370,11 +425,13 @@ End Sub
 
 ' Lower-case SHA-256 of a file via the Windows certutil tool ("" if it cannot be computed).
 Private Function FileSha256(ByVal path As String) As String
-    Dim sh As Object, tmp As String, lines() As String, i As Long, s As String
+    Dim sh As Object, tmp As String, lines() As String, i As Long, s As String, q As String, sys As String
     On Error Resume Next
-    tmp = Environ("TEMP") & "\tbs_hash_" & Format$(Now, "hhnnss") & ".txt"
+    q = Chr$(34)
+    sys = Environ("SystemRoot") & "\System32\"          ' full paths: do not search the PATH for the tools
+    tmp = Environ("TEMP") & "\tbs_hash_" & Format$(Now, "hhnnss") & "_" & CStr(CLng(Timer * 1000)) & ".txt"
     Set sh = CreateObject("WScript.Shell")
-    sh.Run "cmd /c certutil -hashfile """ & path & """ SHA256 > """ & tmp & """", 0, True
+    sh.Run q & sys & "cmd.exe" & q & " /c " & q & q & sys & "certutil.exe" & q & " -hashfile " & q & path & q & " SHA256 > " & q & tmp & q & q, 0, True
     lines = Split(ReadText(tmp), vbCrLf)
     Kill tmp
     For i = 0 To UBound(lines)

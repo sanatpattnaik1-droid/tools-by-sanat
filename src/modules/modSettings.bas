@@ -27,7 +27,19 @@ End Function
 ' Value of one setting, or "" if it is not defined.
 Public Function SettingValue(ByVal key As String) As String
     LoadSettings
-    If mSettings.Exists(key) Then SettingValue = mSettings(key)
+    If mSettings.Exists(key) Then SettingValue = SafeText(mSettings(key))
+End Function
+
+' Text that comes from a file must never turn into a formula when it is written to a cell:
+' a leading = + - @ (or tab / line break) gets a text prefix, as Excel does for "'=1+1".
+Public Function SafeText(ByVal s As String) As String
+    If Len(s) > 0 Then
+        Select Case Left$(s, 1)
+            Case "=", "+", "-", "@", vbTab, vbCr, vbLf
+                s = "'" & s
+        End Select
+    End If
+    SafeText = s
 End Function
 
 ' One field ("name", "state", "address1", "address2", "city", "pin") of the customer with this GSTIN,
@@ -47,7 +59,7 @@ Public Function PartyField(ByVal gstin As Variant, ByVal field As String) As Str
         Case "pin": idx = 5
         Case Else: Exit Function
     End Select
-    PartyField = mParties(k)(idx)
+    PartyField = SafeText(mParties(k)(idx))
 End Function
 
 ' Ribbon "Settings" button: create empty templates if the files are missing, then open the folder.
@@ -56,6 +68,7 @@ Public Sub OpenSettingsFolder()
     d = SettingsDir()
     On Error GoTo Fail
     If Len(Dir(d, vbDirectory)) = 0 Then MkDir d
+    BackupSettings                       ' a dated copy before anything can be edited
     If Len(Dir(d & SETTINGS_FILE)) = 0 Then
         WriteTemplate d & SETTINGS_FILE, "key,value" & vbCrLf & _
             "vendor_email.EXAMPLE,someone@example.com;" & vbCrLf & _
@@ -72,6 +85,126 @@ Public Sub OpenSettingsFolder()
 Fail:
     MsgBox "Could not open the settings folder:" & vbCrLf & d, vbExclamation, "Tools By Sanat"
 End Sub
+
+' ---------------------------------------------------------------- trusted files and settings written by the tool
+
+' Opens a macro workbook that this add-in did not create, but only after the owner has approved that exact file.
+' The approval is remembered as the file's SHA-256 (settings key trusted_sha256.<file name>). A new or changed
+' file asks again, so a look-alike file dropped into Downloads is not opened silently.
+Public Function OpenTrustedWorkbook(ByVal path As String) As Boolean
+    Dim h As String, known As String, nm As String, msg As String
+    nm = Mid$(path, InStrRev(path, "\") + 1)
+    h = FileSha256(path)
+    If Len(h) = 0 Then
+        MsgBox "Could not check this file:" & vbCrLf & path, vbExclamation, "Tools By Sanat"
+        Exit Function
+    End If
+    known = LCase$(SettingValue("trusted_sha256." & nm))
+    If known <> h Then
+        If Len(known) = 0 Then
+            msg = "'" & nm & "' is about to be opened for the first time from:" & vbCrLf & path & vbCrLf & vbCrLf & _
+                  "It contains macros. Only continue if you got this file from a source you trust." & vbCrLf & vbCrLf & "Trust this file?"
+        Else
+            msg = "'" & nm & "' has CHANGED since you last trusted it:" & vbCrLf & path & vbCrLf & vbCrLf & _
+                  "If you updated it yourself, choose Yes. If you did not, choose No and check where it came from." & vbCrLf & vbCrLf & "Trust the changed file?"
+        End If
+        If MsgBox(msg, vbQuestion + vbYesNo + vbDefaultButton2, "Tools By Sanat - security check") <> vbYes Then Exit Function
+        SetSettingValue "trusted_sha256." & nm, h
+    End If
+    Workbooks.Open path
+    OpenTrustedWorkbook = True
+End Function
+
+' Adds or changes one line of settings.csv (a dated backup is made first).
+Public Sub SetSettingValue(ByVal key As String, ByVal value As String)
+    Dim data As Variant, i As Long, found As Boolean, text As String, p As String, v2 As String
+    If Len(Dir(SettingsDir(), vbDirectory)) = 0 Then MkDir SettingsDir()
+    p = SettingsDir() & SETTINGS_FILE
+    BackupSettings
+    data = ReadCsv(p)
+    text = "key,value" & vbCrLf
+    If Not IsEmpty(data) Then
+        For i = 2 To UBound(data, 1)
+            If Len(Trim$(data(i, 1))) > 0 Then
+                v2 = ""
+                If UBound(data, 2) >= 2 Then v2 = data(i, 2)
+                If StrComp(Trim$(data(i, 1)), key, vbTextCompare) = 0 Then
+                    text = text & CsvField(key) & "," & CsvField(value) & vbCrLf: found = True
+                Else
+                    text = text & CsvField(data(i, 1)) & "," & CsvField(v2) & vbCrLf
+                End If
+            End If
+        Next i
+    End If
+    If Not found Then text = text & CsvField(key) & "," & CsvField(value) & vbCrLf
+    WriteUtf8 p, text
+    Set mSettings = Nothing              ' force a reload
+End Sub
+
+Private Function CsvField(ByVal s As String) As String
+    If InStr(s, ",") > 0 Or InStr(s, """") > 0 Or InStr(s, vbCr) > 0 Or InStr(s, vbLf) > 0 Then
+        CsvField = """" & Replace(s, """", """""") & """"
+    Else
+        CsvField = s
+    End If
+End Function
+
+Private Sub WriteUtf8(ByVal path As String, ByVal text As String)
+    Dim st As Object
+    Set st = CreateObject("ADODB.Stream")
+    st.Type = 2: st.Charset = "utf-8"
+    st.Open
+    st.WriteText text
+    st.SaveToFile path, 2
+    st.Close
+End Sub
+
+' Dated copies of both settings files in ToolsBySanat_data\backup (the newest 30 are kept).
+Private Sub BackupSettings()
+    Dim d As String, b As String, stamp As String, f As Variant
+    Dim names() As String, n As Long, nm As String, i As Long, j As Long, tmp As String
+    On Error Resume Next
+    d = SettingsDir(): b = d & "backup\"
+    If Len(Dir(d, vbDirectory)) = 0 Then Exit Sub
+    If Len(Dir(b, vbDirectory)) = 0 Then MkDir b
+    stamp = Format$(Now, "yyyymmdd_hhnnss")
+    For Each f In Array(SETTINGS_FILE, PARTY_FILE)
+        If Len(Dir(d & f)) > 0 Then FileCopy d & f, b & stamp & "_" & f
+    Next f
+    nm = Dir(b & "*.csv")
+    Do While Len(nm) > 0
+        ReDim Preserve names(0 To n): names(n) = nm: n = n + 1
+        nm = Dir
+    Loop
+    If n <= 30 Then Exit Sub
+    For i = 0 To n - 2                   ' oldest first (the file names start with the date)
+        For j = i + 1 To n - 1
+            If names(j) < names(i) Then tmp = names(i): names(i) = names(j): names(j) = tmp
+        Next j
+    Next i
+    For i = 0 To n - 31: Kill b & names(i): Next i
+End Sub
+
+' Lower-case SHA-256 of a file via the Windows certutil tool ("" if it cannot be computed).
+Public Function FileSha256(ByVal path As String) As String
+    Dim sh As Object, tmp As String, lines() As String, i As Long, s As String, q As String, sys As String, f As Integer, txt As String
+    On Error Resume Next
+    q = Chr$(34)
+    sys = Environ("SystemRoot") & "\System32\"
+    tmp = Environ("TEMP") & "\tbs_hash_" & Format$(Now, "hhnnss") & "_" & CStr(CLng(Timer * 1000)) & ".txt"
+    Set sh = CreateObject("WScript.Shell")
+    sh.Run q & sys & "cmd.exe" & q & " /c " & q & q & sys & "certutil.exe" & q & " -hashfile " & q & path & q & " SHA256 > " & q & tmp & q & q, 0, True
+    f = FreeFile
+    Open tmp For Input As #f
+    If LOF(f) > 0 Then txt = Input$(LOF(f), f)
+    Close #f
+    Kill tmp
+    lines = Split(txt, vbCrLf)
+    For i = 0 To UBound(lines)
+        s = LCase$(Replace(Trim$(lines(i)), " ", ""))
+        If Len(s) = 64 And Not (s Like "*[!0-9a-f]*") Then FileSha256 = s: Exit Function
+    Next i
+End Function
 
 ' ---------------------------------------------------------------- loading
 

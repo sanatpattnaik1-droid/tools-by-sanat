@@ -4,3 +4,10 @@ build/
 *.XLSB
 dist/
 src/icons/source/
+
+# signing keys: the PRIVATE key must never be committed
+*.enc
+*private*
+update-private*
+
+ribbon-layout-yours.xlsx
