@@ -4,16 +4,12 @@
       <tab id="tabToolsBySanat" label="Tools By Sanat" insertAfterMso="TabDeveloper">
 
         <group id="grpHaReports" label="HA Reports">
-          <box id="box_grpHaReports_1" boxStyle="vertical">
-            <button id="btnCompWiseSaleRegister" label="Company Sale Register" screentip="Cmp Wise Sale Register (Detail)" size="normal" image="btnCompWiseSaleRegister" tag="COMP_W_REG_D.COMP_W_REG_D" onAction="RunMacro"/>
-            <button id="btnPartyReceivingSummary" label="Receiving Summary" screentip="Party Wise Receiving Summary" size="normal" image="btnPartyReceivingSummary" tag="Sale_Receiving_Summary.Receiving_Summary" onAction="RunMacro"/>
-          </box>
+          <button id="btnCompWiseSaleRegister" label="Company Sale Register" screentip="Cmp Wise Sale Register (Detail)" size="large" image="btnCompWiseSaleRegister" tag="COMP_W_REG_D.COMP_W_REG_D" onAction="RunMacro"/>
+          <button id="btnPartyReceivingSummary" label="Receiving Summary" screentip="Party Wise Receiving Summary" size="large" image="btnPartyReceivingSummary" tag="Sale_Receiving_Summary.Receiving_Summary" onAction="RunMacro"/>
+          <button id="btnCollectionOutstanding" label="Collection Outstanding" screentip="Collection Outstanding Report Setup" size="large" image="btnCollectionOutstanding" tag="Collection_Outstanding_Report1.Collection_Outstanding_Report" onAction="RunMacro"/>
+          <button id="btnVanWiseOutstanding" label="Van Wise Outstanding" screentip="Van_Wise Outstanding Report" size="large" image="btnVanWiseOutstanding" tag="Van_Wise_Outstanding_Report.Van_Wise_Outstanding_Report" onAction="RunMacro"/>
           <button id="btnIrnUpload" label="IRN Upload Format" screentip="IRN Upload Format" size="large" image="btnIrnUpload" tag="IRN_UPLOAD.IRN_UPLOAD" onAction="RunMacro"/>
           <button id="btnEInvoiceValidation" label="E-Invoice Validation" screentip="E Invoice Validation" size="large" image="btnEInvoiceValidation" tag="E_Invoice_Validation.E_Invoice_Validation" onAction="RunMacro"/>
-          <box id="box_grpHaReports_2" boxStyle="vertical">
-            <button id="btnCollectionOutstanding" label="Collection Outstanding" screentip="Collection Outstanding Report Setup" size="normal" image="btnCollectionOutstanding" tag="Collection_Outstanding_Report1.Collection_Outstanding_Report" onAction="RunMacro"/>
-            <button id="btnVanWiseOutstanding" label="Van Wise Outstanding" screentip="Van_Wise Outstanding Report" size="normal" image="btnVanWiseOutstanding" tag="Van_Wise_Outstanding_Report.Van_Wise_Outstanding_Report" onAction="RunMacro"/>
-          </box>
         </group>
 
         <group id="grpRetail" label="Retail Formats">
