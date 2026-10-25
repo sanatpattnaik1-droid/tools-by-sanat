@@ -34,7 +34,12 @@ $check = [pscustomobject]$out
 if (-not (Test-Path $PublicKey)) { throw "Public key file not found: $PublicKey" }
 if (-not (Test-ManifestSignature $check (Get-Content $PublicKey -Raw))) { throw 'The signature does not verify against keys\update-public.xml. This private key does not belong to the public key built into the loader.' }
 
-$out | ConvertTo-Json | Set-Content $VersionFile -Encoding UTF8
+$json = $out | ConvertTo-Json
+$saved = $false
+for ($try = 1; $try -le 10 -and -not $saved; $try++) {
+    try { [IO.File]::WriteAllText($VersionFile, $json, (New-Object Text.UTF8Encoding($true))); $saved = $true }
+    catch { if ($try -eq 10) { throw "Could not save $VersionFile because another program has it open (an editor, Notepad, antivirus or sync tool). Close it and run this again. Nothing was changed." }; Start-Sleep -Milliseconds 700 }
+}
 Write-Host ''
 Write-Host "Signed and verified. version.json now carries the signature for $($m.version)." -ForegroundColor Green
 Write-Host 'Tell Claude it is signed; the release can be published now.'

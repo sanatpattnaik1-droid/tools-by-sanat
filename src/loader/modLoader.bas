@@ -29,6 +29,27 @@ Private Const MAX_BYTES As Long = 20971520   ' 20 MB
 Private mDetail As String                    ' why the last check failed, shown by "Check for updates"
 Private mSoftFail As Boolean                 ' last request got no HTTP answer at all (try the next component)
 
+' Windows CryptoAPI (advapi32): present on every Windows PC, needs no .NET.
+#If VBA7 Then
+Private Declare PtrSafe Function CryptAcquireContextA Lib "advapi32.dll" (ByRef phProv As LongPtr, ByVal pszContainer As String, ByVal pszProvider As String, ByVal dwProvType As Long, ByVal dwFlags As Long) As Long
+Private Declare PtrSafe Function CryptImportKey Lib "advapi32.dll" (ByVal hProv As LongPtr, ByRef pbData As Byte, ByVal dwDataLen As Long, ByVal hPubKey As LongPtr, ByVal dwFlags As Long, ByRef phKey As LongPtr) As Long
+Private Declare PtrSafe Function CryptCreateHash Lib "advapi32.dll" (ByVal hProv As LongPtr, ByVal Algid As Long, ByVal hKey As LongPtr, ByVal dwFlags As Long, ByRef phHash As LongPtr) As Long
+Private Declare PtrSafe Function CryptHashData Lib "advapi32.dll" (ByVal hHash As LongPtr, ByRef pbData As Byte, ByVal dwDataLen As Long, ByVal dwFlags As Long) As Long
+Private Declare PtrSafe Function CryptVerifySignatureA Lib "advapi32.dll" (ByVal hHash As LongPtr, ByRef pbSignature As Byte, ByVal dwSigLen As Long, ByVal hPubKey As LongPtr, ByVal sDescription As Long, ByVal dwFlags As Long) As Long
+Private Declare PtrSafe Function CryptDestroyHash Lib "advapi32.dll" (ByVal hHash As LongPtr) As Long
+Private Declare PtrSafe Function CryptDestroyKey Lib "advapi32.dll" (ByVal hKey As LongPtr) As Long
+Private Declare PtrSafe Function CryptReleaseContext Lib "advapi32.dll" (ByVal hProv As LongPtr, ByVal dwFlags As Long) As Long
+#Else
+Private Declare Function CryptAcquireContextA Lib "advapi32.dll" (ByRef phProv As Long, ByVal pszContainer As String, ByVal pszProvider As String, ByVal dwProvType As Long, ByVal dwFlags As Long) As Long
+Private Declare Function CryptImportKey Lib "advapi32.dll" (ByVal hProv As Long, ByRef pbData As Byte, ByVal dwDataLen As Long, ByVal hPubKey As Long, ByVal dwFlags As Long, ByRef phKey As Long) As Long
+Private Declare Function CryptCreateHash Lib "advapi32.dll" (ByVal hProv As Long, ByVal Algid As Long, ByVal hKey As Long, ByVal dwFlags As Long, ByRef phHash As Long) As Long
+Private Declare Function CryptHashData Lib "advapi32.dll" (ByVal hHash As Long, ByRef pbData As Byte, ByVal dwDataLen As Long, ByVal dwFlags As Long) As Long
+Private Declare Function CryptVerifySignatureA Lib "advapi32.dll" (ByVal hHash As Long, ByRef pbSignature As Byte, ByVal dwSigLen As Long, ByVal hPubKey As Long, ByVal sDescription As Long, ByVal dwFlags As Long) As Long
+Private Declare Function CryptDestroyHash Lib "advapi32.dll" (ByVal hHash As Long) As Long
+Private Declare Function CryptDestroyKey Lib "advapi32.dll" (ByVal hKey As Long) As Long
+Private Declare Function CryptReleaseContext Lib "advapi32.dll" (ByVal hProv As Long, ByVal dwFlags As Long) As Long
+#End If
+
 ' ---------------------------------------------------------------- entry points
 
 Public Sub Startup()
@@ -229,9 +250,11 @@ Private Function IsNewer(ByVal remoteVer As String, ByVal installedVer As String
 End Function
 
 ' True if the signature (hex) is a valid RSA/SHA-256 signature, made with the owner's private key, over
-' "ToolsBySanat|<version>|<sha256>|<url>". Uses the .NET RSA component that ships with Windows.
+' "ToolsBySanat|<version>|<sha256>|<url>". The Windows CryptoAPI does the check (no .NET needed). Only if the
+' CryptoAPI itself cannot be used on this PC is the .NET component tried as a backup. A signature that was
+' checked and is WRONG is always rejected; any failure means "not verified" (never "accepted").
 Private Function VerifySignature(ByVal ver As String, ByVal sha As String, ByVal url As String, ByVal sigHex As String) As Boolean
-    Dim rsa As Object, b() As Byte, d() As Byte, i As Long, msg As String
+    Dim b() As Byte, d() As Byte, i As Long, msg As String, r As Long
     On Error GoTo Fail
     sigHex = LCase$(Replace(Replace(Trim$(sigHex), vbCr, ""), vbLf, ""))
     If Len(sigHex) < 128 Or Len(sigHex) Mod 2 <> 0 Or sigHex Like "*[!0-9a-f]*" Then mDetail = mDetail & "No valid signature. ": Exit Function
@@ -240,14 +263,92 @@ Private Function VerifySignature(ByVal ver As String, ByVal sha As String, ByVal
         b(i) = CByte("&H" & Mid$(sigHex, i * 2 + 1, 2))
     Next i
     msg = "ToolsBySanat|" & ver & "|" & sha & "|" & url
-    d = StrConv(msg, vbFromUnicode)                  ' typed byte arrays: the .NET call rejects an inline Variant
-    Set rsa = CreateObject("System.Security.Cryptography.RSACryptoServiceProvider")
-    rsa.FromXmlString PUBLIC_KEY
-    VerifySignature = CBool(rsa.VerifyData(d, "SHA256", b))
+    d = StrConv(msg, vbFromUnicode)                  ' typed byte arrays (an inline Variant is rejected by the calls)
+    r = VerifyCryptoApi(d, b)
+    If r = 1 Then VerifySignature = True: Exit Function
+    If r = 0 Then Exit Function                      ' verified and WRONG
+    VerifySignature = VerifyDotNet(d, b)             ' CryptoAPI unusable here: backup method
     Exit Function
 Fail:
     mDetail = mDetail & "Signature check error " & Err.Number & ": " & Err.Description & ". "
     VerifySignature = False
+End Function
+
+' 1 = valid, 0 = checked and not valid, -1 = could not be checked (CryptoAPI problem).
+Private Function VerifyCryptoApi(d() As Byte, sigBE() As Byte) As Long
+#If VBA7 Then
+    Dim hProv As LongPtr, hKey As LongPtr, hHash As LongPtr
+#Else
+    Dim hProv As Long, hKey As Long, hHash As Long
+#End If
+    Dim blob() As Byte, sig() As Byte, n As Long, i As Long
+    VerifyCryptoApi = -1
+    On Error GoTo Done
+    blob = KeyBlob()
+    If UBound(blob) < 64 Then mDetail = mDetail & "The built-in public key is unusable. ": GoTo Done
+    n = UBound(sigBE) + 1
+    ReDim sig(0 To n - 1)
+    For i = 0 To n - 1: sig(i) = sigBE(n - 1 - i): Next i      ' the CryptoAPI wants the signature little-endian
+    If CryptAcquireContextA(hProv, vbNullString, "Microsoft Enhanced RSA and AES Cryptographic Provider", 24, &HF0000000) = 0 Then GoTo Done
+    If CryptImportKey(hProv, blob(0), UBound(blob) + 1, 0, 0, hKey) = 0 Then GoTo Done
+    If CryptCreateHash(hProv, &H800C&, 0, 0, hHash) = 0 Then GoTo Done     ' CALG_SHA_256 (the trailing & keeps it a Long: &H800C alone is negative)
+    If CryptHashData(hHash, d(0), UBound(d) + 1, 0) = 0 Then GoTo Done
+    If CryptVerifySignatureA(hHash, sig(0), n, hKey, 0, 0) <> 0 Then VerifyCryptoApi = 1 Else VerifyCryptoApi = 0
+Done:
+    If hHash <> 0 Then CryptDestroyHash hHash
+    If hKey <> 0 Then CryptDestroyKey hKey
+    If hProv <> 0 Then CryptReleaseContext hProv, 0
+End Function
+
+' Backup: the .NET RSA component (needs .NET Framework 3.5, which is not enabled on every PC).
+Private Function VerifyDotNet(d() As Byte, b() As Byte) As Boolean
+    Dim rsa As Object
+    On Error GoTo Fail
+    Set rsa = CreateObject("System.Security.Cryptography.RSACryptoServiceProvider")
+    rsa.FromXmlString PUBLIC_KEY
+    VerifyDotNet = CBool(rsa.VerifyData(d, "SHA256", b))
+    Exit Function
+Fail:
+    mDetail = mDetail & "Signature check error " & Err.Number & ": " & Err.Description & ". "
+    VerifyDotNet = False
+End Function
+
+' PUBLIC_KEY (the .NET XML form: Modulus + Exponent in base64) as a CryptoAPI PUBLICKEYBLOB.
+Private Function KeyBlob() As Byte()
+    Dim m() As Byte, e() As Byte, blob() As Byte, i As Long, n As Long, ex As Long, bits As Long
+    m = Base64Bytes(XmlTag(PUBLIC_KEY, "Modulus"))
+    e = Base64Bytes(XmlTag(PUBLIC_KEY, "Exponent"))
+    n = UBound(m) + 1
+    For i = 0 To UBound(e): ex = ex * 256 + e(i): Next i       ' big-endian exponent (AQAB = 65537)
+    bits = n * 8
+    ReDim blob(0 To 19 + n)
+    blob(0) = 6: blob(1) = 2                                    ' PUBLICKEYBLOB, version 2
+    blob(5) = &H24                                              ' CALG_RSA_SIGN = 0x00002400
+    blob(8) = &H52: blob(9) = &H53: blob(10) = &H41: blob(11) = &H31       ' "RSA1"
+    blob(12) = bits And &HFF: blob(13) = (bits \ 256) And &HFF: blob(14) = (bits \ 65536) And &HFF
+    blob(16) = ex And &HFF: blob(17) = (ex \ 256) And &HFF: blob(18) = (ex \ 65536) And &HFF
+    For i = 0 To n - 1: blob(20 + i) = m(n - 1 - i): Next i    ' modulus little-endian
+    KeyBlob = blob
+End Function
+
+Private Function XmlTag(ByVal xml As String, ByVal tag As String) As String
+    Dim p As Long, q As Long
+    p = InStr(xml, "<" & tag & ">")
+    If p = 0 Then Exit Function
+    p = p + Len(tag) + 2
+    q = InStr(p, xml, "</" & tag & ">")
+    If q = 0 Then Exit Function
+    XmlTag = Mid$(xml, p, q - p)
+End Function
+
+' Base64 text -> bytes with MSXML (present on every Windows PC).
+Private Function Base64Bytes(ByVal s As String) As Byte()
+    Dim doc As Object, node As Object
+    Set doc = CreateObject("MSXML2.DOMDocument")
+    Set node = doc.createElement("b64")
+    node.DataType = "bin.base64"
+    node.Text = s
+    Base64Bytes = node.nodeTypedValue
 End Function
 
 ' The staged update's manifest (version, sha256, url, signature - one per line) must carry a valid signature,
