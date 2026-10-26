@@ -82,7 +82,7 @@ $visible = $rows | Where-Object { -not (& $hidden $_.Group) }
 # ---- build the XML ----
 $x = New-Object System.Collections.Generic.List[string]
 $x.Add('<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui">'); $x.Add('  <ribbon>'); $x.Add('    <tabs>')
-$x.Add('      <tab id="tabToolsBySanat" label="Tools By Sanat" insertAfterMso="TabDeveloper">')
+$x.Add('      <tab id="tabToolsBySanat" label="Tools by Sanat v2" insertAfterMso="TabDeveloper">')
 $used = @{}
 foreach ($gname in ($visible | ForEach-Object Group | Sort-Object -Unique { $groups[$_] })) {
     $gid = if ($gids[$gname]) { $gids[$gname] } elseif ($groupId.ContainsKey($gname)) { $groupId[$gname] } else { 'grp_' + ($gname -replace '[^A-Za-z0-9]', '') }

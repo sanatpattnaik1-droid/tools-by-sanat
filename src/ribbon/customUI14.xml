@@ -1,7 +1,7 @@
 <customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui">
   <ribbon>
     <tabs>
-      <tab id="tabToolsBySanat" label="Tools By Sanat" insertAfterMso="TabDeveloper">
+      <tab id="tabToolsBySanat" label="Tools by Sanat v2" insertAfterMso="TabDeveloper">
 
         <group id="grpHaReports" label="HA Reports">
           <button id="btnCompWiseSaleRegister" label="Company Sale Register" screentip="Cmp Wise Sale Register (Detail)" size="large" image="btnCompWiseSaleRegister" tag="COMP_W_REG_D.COMP_W_REG_D" onAction="RunMacro"/>

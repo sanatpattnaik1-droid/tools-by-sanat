@@ -53,4 +53,4 @@ finally {
     if ($xl) { $xl.Quit(); [void][Runtime.InteropServices.Marshal]::ReleaseComObject($xl) }
 }
 
-Write-Host 'Done. Open Excel and look for the "Tools By Sanat" tab.' -ForegroundColor Green
+Write-Host 'Done. Open Excel and look for the "Tools by Sanat v2" tab.' -ForegroundColor Green

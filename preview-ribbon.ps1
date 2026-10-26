@@ -32,7 +32,7 @@ try {
     $xl.WindowState = -4137; Start-Sleep 3
     $h = [IntPtr]$xl.Hwnd
     $win = [System.Windows.Automation.AutomationElement]::FromHandle($h)
-    $tabs = $win.FindAll('Descendants', (New-Object System.Windows.Automation.AndCondition((New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::TabItem)), (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Tools By Sanat')))))
+    $tabs = $win.FindAll('Descendants', (New-Object System.Windows.Automation.AndCondition((New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::TabItem)), (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'Tools by Sanat v2')))))
     try { $tabs[0].GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select() } catch {}
     Start-Sleep 2
     $r = New-Object PW+RECT; [void][PW]::GetWindowRect($h, [ref]$r)
