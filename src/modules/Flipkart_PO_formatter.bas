@@ -3,7 +3,8 @@ Option Explicit
 '------------------------------------------------------------------
 ' Flipkart PO formatter
 ' Reads the raw PO export from the ACTIVE sheet of the active workbook and builds a new workbook in
-' the Output.xlsx layout: filtered, 17 columns, sorted by PO ID.
+' the Output.xlsx layout: filtered, 17 columns, sorted by PO ID (column A), A to Z.
+' The new workbook is saved next to the original file as "Flipkart Open PO- dd-mm-yyyy hhmmss.xlsx" and left open.
 '
 ' Install : Excel > Alt+F11 > File > Import File... > FormatPO.bas
 ' Run     : open the Input file, leave it as the active window, Alt+F8 > FormatPO > Run
@@ -26,12 +27,19 @@ Private Const LAYOUT As String = _
     "Total Amount|Total Amount|n;supplier_app_amount|supplier_app_amount|n"
 
 Public Sub Flipkart_PO_formatter()
-    Dim wsIn As Worksheet
+    FormatFlipkart False
+End Sub
+
+' Formats the active sheet, saves the result next to the original and returns the saved path
+' ("" = failed or could not be saved). quiet = no success message (tests).
+Public Function FormatFlipkart(ByVal quiet As Boolean) As String
+    Dim wsIn As Worksheet, srcFolder As String, saved As String, problem As String
     Dim oldCalc As XlCalculation, oldScr As Boolean, oldAlerts As Boolean
 
-    If ActiveWorkbook Is Nothing Then MsgBox "Open the Input file first.", vbExclamation, "Format PO": Exit Sub
-    If Not TypeOf ActiveSheet Is Worksheet Then MsgBox "Select the Input worksheet first.", vbExclamation, "Format PO": Exit Sub
+    If ActiveWorkbook Is Nothing Then MsgBox "Open the Input file first.", vbExclamation, "Format PO": Exit Function
+    If Not TypeOf ActiveSheet Is Worksheet Then MsgBox "Select the Input worksheet first.", vbExclamation, "Format PO": Exit Function
     Set wsIn = ActiveSheet
+    srcFolder = wsIn.Parent.Path
 
     oldScr = Application.ScreenUpdating: oldAlerts = Application.DisplayAlerts
     oldCalc = Application.Calculation
@@ -134,9 +142,16 @@ Public Sub Flipkart_PO_formatter()
 
     Application.Calculation = oldCalc
     Application.ScreenUpdating = oldScr
-    MsgBox n & " rows written to a new workbook (" & wbOut.name & ")." & vbLf & _
-           "Save it as Output.xlsx.", vbInformation, "Format PO"
-    Exit Sub
+    saved = SaveBesideSource(wbOut, srcFolder, "Flipkart", problem)
+    FormatFlipkart = saved
+    If quiet Then Exit Function
+    If Len(saved) > 0 Then
+        MsgBox n & " rows saved to:" & vbLf & saved, vbInformation, "Format PO"
+    Else
+        MsgBox n & " rows written to a new workbook, but it could not be saved (" & problem & ")." & vbLf & _
+               "It is open and not saved yet: use File > Save As.", vbExclamation, "Format PO"
+    End If
+    Exit Function
 
 Fail:
     Dim msg As String: msg = Err.Description
@@ -145,7 +160,7 @@ Fail:
     Application.ScreenUpdating = oldScr
     Application.DisplayAlerts = oldAlerts
     MsgBox "Format PO failed:" & vbLf & msg, vbExclamation, "Format PO"
-End Sub
+End Function
 
 ' ---- helpers ----
 Private Function ColOf(data As Variant, lastC As Long, ByVal name As String) As Long

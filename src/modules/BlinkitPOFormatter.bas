@@ -7,7 +7,9 @@ Option Explicit
 '            Sum of remaining_quantity, Sum of total_amount, Grand Total
 '   Sheet1 - data: only the chosen po_state (default Unscheduled), mrp moved after upc,
 '            po_number / upc as text, dates as real dates (dd-mm-yy), frozen header, filter, auto-fit
-' The active workbook is not changed and the new workbook is left open and unsaved.
+'            Rows are sorted by po_number (column A), A to Z.
+' The new workbook is saved next to the original file as "Blinkit Open PO- dd-mm-yyyy hhmmss.xlsx" and left open.
+' The original workbook is not changed.
 '
 ' Works on any workbook; no references needed (late binding only).
 
@@ -16,7 +18,7 @@ Private Const DATE_FMT As String = "dd-mm-yy"
 Private Const TITLE As String = "Blinkit PO formatter"
 
 Public Sub FormatBlinkitPO()
-    Dim data As Variant, stateFilter As String, answer As String, n As Long
+    Dim data As Variant, stateFilter As String, answer As String, srcFolder As String
 
     data = ReadActiveSheet()
     If IsEmpty(data) Then
@@ -33,9 +35,36 @@ Public Sub FormatBlinkitPO()
     If StrPtr(answer) = 0 Then Exit Sub   ' Cancel
     stateFilter = Trim$(answer)
 
-    n = RunFormat(data, stateFilter)
-    If n > 0 Then MsgBox n & " rows written to a new workbook (not saved).", vbInformation, TITLE
+    srcFolder = ActiveWorkbook.Path              ' where the original file lives (before the new workbook becomes active)
+    ProcessAndSave data, srcFolder, stateFilter, False
 End Sub
+
+' Formats the active sheet, saves the result next to the original and returns the saved path
+' ("" = nothing written, or it could not be saved). quiet = no success message (tests).
+Public Function RunActive(ByVal stateFilter As String, ByVal quiet As Boolean) As String
+    Dim data As Variant
+    data = ReadActiveSheet()
+    If IsEmpty(data) Then Exit Function
+    RunActive = ProcessAndSave(data, ActiveWorkbook.Path, stateFilter, quiet)
+End Function
+
+Private Function ProcessAndSave(ByVal data As Variant, ByVal srcFolder As String, ByVal stateFilter As String, ByVal quiet As Boolean) As String
+    Dim n As Long, wb As Workbook, saved As String, problem As String
+
+    n = RunFormat(data, stateFilter)
+    If n = 0 Then Exit Function
+    Set wb = ActiveWorkbook                      ' RunFormat leaves the new workbook active
+
+    saved = SaveBesideSource(wb, srcFolder, "Blinkit", problem)
+    ProcessAndSave = saved
+    If quiet Then Exit Function
+    If Len(saved) > 0 Then
+        MsgBox n & " rows saved to:" & vbLf & saved, vbInformation, TITLE
+    Else
+        MsgBox n & " rows written to a new workbook, but it could not be saved (" & problem & ")." & vbLf & _
+               "It is open and not saved yet: use File > Save As.", vbExclamation, TITLE
+    End If
+End Function
 
 ' Does the work without any dialogs. Returns rows written (0 = nothing matched or failure).
 ' The new workbook is left open and unsaved.
@@ -66,6 +95,7 @@ Public Function RunFormat(ByVal data As Variant, ByVal stateFilter As String) As
         Exit Function
     End If
 
+    SortByPoNumber wsData, outRows
     FormatDataSheet wsData, outRows
     BuildPivot wb, wsData, wsPivot, outRows
 
@@ -208,6 +238,31 @@ End Function
 Private Function ParseNumber(ByVal s As String) As Variant
     If s Like "*[!0-9.eE+-]*" Then ParseNumber = s Else ParseNumber = Val(s)
 End Function
+
+' Sorts the data rows by po_number, A to Z; rows with the same po_number keep their original order.
+Private Sub SortByPoNumber(ws As Worksheet, ByVal nRows As Long)
+    Dim lastCol As Long, keyCol As Long, c As Long, i As Long, seq() As Variant
+    If nRows < 2 Then Exit Sub
+    lastCol = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Column
+    For c = 1 To lastCol
+        If CStr(ws.Cells(1, c).Value) = "po_number" Then keyCol = c: Exit For
+    Next c
+    If keyCol = 0 Then Exit Sub
+
+    ReDim seq(1 To nRows, 1 To 1)                ' helper column: original row order, removed again below
+    For i = 1 To nRows: seq(i, 1) = i: Next i
+    ws.Range(ws.Cells(2, lastCol + 1), ws.Cells(nRows + 1, lastCol + 1)).Value = seq
+
+    With ws.Sort
+        .SortFields.Clear
+        .SortFields.Add Key:=ws.Range(ws.Cells(2, keyCol), ws.Cells(nRows + 1, keyCol)), Order:=xlAscending
+        .SortFields.Add Key:=ws.Range(ws.Cells(2, lastCol + 1), ws.Cells(nRows + 1, lastCol + 1)), Order:=xlAscending
+        .SetRange ws.Range(ws.Cells(1, 1), ws.Cells(nRows + 1, lastCol + 1))
+        .Header = xlYes
+        .Apply
+    End With
+    ws.Columns(lastCol + 1).Delete
+End Sub
 
 Private Sub FormatDataSheet(ws As Worksheet, ByVal nRows As Long)
     Dim lastCol As Long, c As Long, hdr As String
