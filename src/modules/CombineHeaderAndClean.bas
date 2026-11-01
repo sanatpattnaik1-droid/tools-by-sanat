@@ -14,7 +14,19 @@ Sub CombineHeaderAndClean()
     
     Dim c As Long, r As Long
     Dim combinedText As String, v As String
-    
+
+    ' No fixed headings to check, so show what is about to be deleted and ask first.
+    If lastCol = 0 Or Application.WorksheetFunction.CountA(ws.Rows("7:9")) = 0 Then
+        MsgBox "Rows 7 to 9 of this sheet are empty, so there is no 3-line header to combine." & vbLf & _
+               "Nothing was changed.", vbExclamation, "Combine Header + Clean"
+        Exit Sub
+    End If
+    If MsgBox("This will delete rows 1 to 6 and join the header lines in rows 7, 8 and 9 into one row." & vbLf & _
+              "It cannot be undone." & vbLf & vbLf & _
+              "Sheet: [" & ws.Parent.Name & "] " & ws.Name & vbLf & _
+              "Row 7 starts with: " & Left$(Trim$(CStr(ws.Cells(7, 1).Text)) & " " & Trim$(CStr(ws.Cells(7, 2).Text)), 60) & vbLf & vbLf & _
+              "Is this the right file?", vbQuestion + vbYesNo + vbDefaultButton2, "Combine Header + Clean") <> vbYes Then Exit Sub
+
     ' 1. Insert a blank row right after row 9
     ws.Rows(10).Insert Shift:=xlDown
     

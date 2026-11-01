@@ -7,6 +7,7 @@ Public Const ADDIN_VERSION As String = "0.1.0"
 ' Every ribbon button passes its macro name in the control's Tag.
 Public Sub RunMacro(control As IRibbonControl)
     On Error GoTo Fail
+    If Not modGuard.CanRun(control.Tag) Then Exit Sub    ' wrong file open: explained, nothing runs
     Application.Run "'" & ThisWorkbook.Name & "'!" & control.Tag
     Exit Sub
 Fail:
